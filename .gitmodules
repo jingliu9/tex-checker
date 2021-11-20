@@ -1,0 +1,3 @@
+[submodule "bibtex-dblp"]
+	path = bibtex-dblp
+	url = https://github.com/jingliu9/bibtex-dblp.git
