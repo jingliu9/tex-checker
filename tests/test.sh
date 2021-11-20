@@ -1,4 +1,4 @@
 #! /bin/bash
 
 
-python ../checker.py --bibaux --root ./paper.aux --bib ./paper.bib
+python3 ../checker.py --bibaux --root ./paper.aux --bib ./paper.bib
