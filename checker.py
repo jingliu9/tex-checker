@@ -181,6 +181,8 @@ class BibChecker(object):
     def _download_citation(self):
         for idx, item_name in enumerate(self.cited_json_items.keys()):
             cur_item = self.cited_json_items[item_name]
+            if 'title' not in cur_item:
+                continue
             web_bib_name = '{}/web-{}.bib'.format(self.FILE_DIR, item_name)
             logging.info(cur_item['title'])
             download_ok = self._download_web_bib(cur_item['title'],
