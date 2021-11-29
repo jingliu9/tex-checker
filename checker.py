@@ -88,13 +88,19 @@ class TexChecker(object):
 
 class BibChecker(object):
 
-    def __init__(self, bibaux, bibitems=None, bibjson=None, inter=False):
+    def __init__(self,
+                 bibaux,
+                 bibitems=None,
+                 bibjson=None,
+                 inter=False,
+                 reuse=False):
         self.USE_DBLP = True
         tmp_path_items = [s for s in re.split('\.|/', bibitems) if s]
         self.FILE_DIR = 'CHECK-{}'.format(('-'.join(tmp_path_items)))
         if not os.path.exists(self.FILE_DIR):
             os.mkdir(self.FILE_DIR)
         self.inter = inter
+        self.reuse = reuse
         self.bibaux = bibaux  #.aux
         self.bibitems = bibitems  #.bib
         self.cited_bibs = {}
@@ -152,19 +158,32 @@ class BibChecker(object):
         # all the cited bibitems are found
         assert (len(self.cited_json_items) == len(self.cited_bibs))
 
-    def _download_web_bib(self, paper_title, save_name):
+    def _download_web_bib(self, paper_title, save_name, target_year=None):
         pub_bibtex = None
+        if os.path.exists(save_name) and self.reuse:
+            logging.info('{} exists, so skip downloading'.format(save_name))
+            return True
         if self.USE_DBLP:
             paper_title = paper_title.replace(u'’', u"'")
             # use dblp
             search_result = dblp_api.search_publication(paper_title,
-                                                        max_search_results=3)
+                                                        max_search_results=5)
             if search_result is not None and search_result.total_matches > 0:
-                # the first that is a conference to select
+                # try to match the year
                 select_idx = 0
-                for idx, pub in enumerate(search_result.results):
-                    if 'conference' in pub.publication.type.lower():
-                        select_idx = idx
+                year_matched = False
+                if target_year is not None:
+                    for idx, pub in enumerate(search_result.results):
+                        if pub.publication.year == target_year:
+                            year_matched = True
+                            select_idx = idx
+                            break
+                # the first that is a conference to select
+                if not year_matched:
+                    for idx, pub in enumerate(search_result.results):
+                        if 'conference' in pub.publication.type.lower():
+                            select_idx = idx
+                            break
                 publication = search_result.results[select_idx].publication
                 pub_bibtex = dblp_api.get_bibtex(
                     publication.key, bib_format=dblp_api.BibFormat.condensed)
@@ -184,9 +203,12 @@ class BibChecker(object):
             if 'title' not in cur_item:
                 continue
             web_bib_name = '{}/web-{}.bib'.format(self.FILE_DIR, item_name)
-            logging.info(cur_item['title'])
+            logging.info('{} - {}'.format(item_name, cur_item['title']))
+            cur_item_year = None
+            if "issued" in cur_item and "date-parts" in cur_item["issued"]:
+                cur_item_year = cur_item["issued"]["date-parts"][0][0]
             download_ok = self._download_web_bib(cur_item['title'],
-                                                 web_bib_name)
+                                                 web_bib_name, cur_item_year)
             if download_ok:
                 web_bib_json_name = web_bib_name + '.json'
                 cmd = 'pandoc {} -s -f biblatex -t csljson -o {}'.format(
@@ -194,21 +216,24 @@ class BibChecker(object):
                 subprocess.run(cmd, shell=True)
                 with open(web_bib_json_name) as f:
                     cur_web_bib_json = (json.load(f))[0]
-                    cur_web_author_list = cur_web_bib_json["author"]
-                    cur_item_author_list = cur_item["author"]
-                    cur_not_match = False
-                    if (len(cur_web_author_list) != len(cur_item_author_list)):
-                        logging.warning("Author list length not match")
-                        cur_not_match = True
-                    for a, b in zip(cur_web_author_list, cur_item_author_list):
-                        if a["family"] != b["family"] or a["given"] != b[
-                                "given"]:
+                    if "author" in cur_web_bib_json and "author" in cur_item:
+                        cur_web_author_list = cur_web_bib_json["author"]
+                        cur_item_author_list = cur_item["author"]
+                        cur_not_match = False
+                        if (len(cur_web_author_list) !=
+                                len(cur_item_author_list)):
+                            logging.warning("Author list length not match")
                             cur_not_match = True
-                            logging.warning("\nW:{} \nL:{}".format(a, b))
-                            if a["given"].replace('.',
-                                                  '') == b["given"].replace(
-                                                      '.', ''):
-                                cur_not_match = False
+                        for a, b in zip(cur_web_author_list,
+                                        cur_item_author_list):
+                            if a["family"] != b["family"] or a["given"] != b[
+                                    "given"]:
+                                cur_not_match = True
+                                logging.warning("\nW:{} \nL:{}".format(a, b))
+                                if a["given"].replace('.',
+                                                      '') == b["given"].replace(
+                                                          '.', ''):
+                                    cur_not_match = False
                     if cur_web_bib_json["issued"]["date-parts"] != cur_item[
                             "issued"]["date-parts"]:
                         logging.warning("Year not match")
@@ -245,7 +270,8 @@ def main(args, loglevel):
         cur_checker = BibChecker(args.root,
                                  bibitems=args.bib,
                                  bibjson=args.bibjson,
-                                 inter=args.interactive)
+                                 inter=args.interactive,
+                                 reuse=args.reuse)
     else:
         raise RuntimeError('type not supported')
 
@@ -282,6 +308,9 @@ def parse_cmd_args():
         help=
         'json file contains the bibitems (csljson), if specified will not use --bib',
         type=str)
+    parser.add_argument('--reuse',
+                        help='try to reuse downloaded bib items',
+                        action='store_true')
     return (parser.parse_args())
 
 
