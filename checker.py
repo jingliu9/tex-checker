@@ -226,6 +226,9 @@ class BibChecker(object):
                             cur_not_match = True
                         for a, b in zip(cur_web_author_list,
                                         cur_item_author_list):
+                            if "literal" in a or "literal" in b:
+                                cur_not_match = True
+                                break
                             if a["family"] != b["family"] or a["given"] != b[
                                     "given"]:
                                 cur_not_match = True
