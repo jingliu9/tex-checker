@@ -20,9 +20,78 @@ colorama.init(autoreset=True)
 YELLOW = "\x1b[1;33;40m"
 
 
+class TexSourecFile(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.out_name = self.name + '.no_comment.tex'
+        self.comment_block_stack = []
+
+    def gen_no_comment_file(self):
+        self._preprocessing_remove_comment()
+        return self.out_name
+
+    def remove_no_comment_file(self):
+        if os.path.exists(self.out_name):
+            os.remove(self.out_name)
+
+    def _if_start_comment_block(self, line: str) -> bool:
+        line = line.strip()
+        if len(line) < 3 or line[0:3] != r'\if':
+            return False
+        items = line.split()
+        if len(items) > 1:
+            if items[1] == '0' * len(items[1]):
+                self.comment_block_stack.append(items[1])
+                return True
+        return False
+
+    def _try_match_comment(self, line: str):
+        if len(self.comment_block_stack) == 0:
+            return False
+        if line.strip() == r'\fi':
+            self.comment_block_stack.pop()
+            return True
+        return False
+
+    def _in_comment_block(self):
+        return len(self.comment_block_stack) > 0
+
+    def _if_comment_line(self, line: str) -> bool:
+        return len(line) >= 1 and line[0] == '%'
+
+    def _write_replace_line(self, f):
+        f.write(' \n')
+
+    def _preprocessing_remove_comment(self):
+        with open(self.name) as f:
+            with open(self.out_name, 'w') as fw:
+                for line in f:
+                    if self._if_comment_line(line):
+                        self._write_replace_line(fw)
+                        continue
+                    self._if_start_comment_block(line)
+                    self._try_match_comment(line)
+                    if self._in_comment_block():
+                        self._write_replace_line(fw)
+                        continue
+                    fw.write(line)
+        # verify same number of lines
+        with open(self.name) as f:
+            with open(self.out_name) as fw:
+                f_lines = sum(1 for line in f)
+                fw_lines = sum(1 for line in fw)
+                assert (f_lines == fw_lines)
+
+
 class TexChecker(object):
 
-    def __init__(self, root_file, skip_fname=None, inter=False, no_rec=False):
+    def __init__(self,
+                 root_file,
+                 skip_fname=None,
+                 inter=False,
+                 no_rec=False,
+                 no_comment=False):
         self.root_file = os.path.abspath(root_file)
         self.root_dir = (Path(self.root_file)).parent
         self.inter = inter
@@ -37,6 +106,9 @@ class TexChecker(object):
             self.tex_source_files.append(root_file)
         else:
             self._resolve_source_files(self.root_file)
+        self.no_comment = no_comment
+        if self.no_comment:
+            self.comment_label_stack = []
 
     def check(self):
         idx = 0
@@ -74,6 +146,10 @@ class TexChecker(object):
 
     def _check_single_file(self, fname):
         tmp_words = '.words'
+        target_fname = fname
+        if self.no_comment:
+            tex_source = TexSourecFile(fname)
+            target_fname = tex_source.gen_no_comment_file()
         cmd = 'cat {} | aspell --ignore=2 list -t | sort | uniq'.format(fname)
         logging.info('>>>>>>> {}'.format(fname))
         with open(tmp_words, 'w') as f:
@@ -84,6 +160,8 @@ class TexChecker(object):
                 if len(line) > 2 and line not in self.skip_list:
                     subprocess.run('rg {} {}'.format(line, fname), shell=True)
         os.remove(tmp_words)
+        if self.no_comment:
+            tex_source.remove_no_comment_file()
 
 
 class BibChecker(object):
@@ -263,7 +341,8 @@ def main(args, loglevel):
         cur_checker = TexChecker(args.root,
                                  skip_fname=args.words,
                                  inter=args.interactive,
-                                 no_rec=args.no_rec)
+                                 no_rec=args.no_rec,
+                                 no_comment=args.no_comment)
         cur_checker.check()
     elif args.markdown:
         raise RuntimeError('Markdown not supported yet')
@@ -304,6 +383,9 @@ def parse_cmd_args():
                         action='store_true')
     parser.add_argument('--no_rec',
                         help='Not recursively check included files',
+                        action='store_true')
+    parser.add_argument('--no_comment',
+                        help='Avoid check comments in tex files',
                         action='store_true')
     parser.add_argument('--bib', help='bib file contains bibitem.', type=str)
     parser.add_argument(
