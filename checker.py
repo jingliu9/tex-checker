@@ -107,8 +107,6 @@ class TexChecker(object):
         else:
             self._resolve_source_files(self.root_file)
         self.no_comment = no_comment
-        if self.no_comment:
-            self.comment_label_stack = []
 
     def check(self):
         idx = 0
@@ -158,7 +156,9 @@ class TexChecker(object):
             for line in f:
                 line = line.strip()
                 if len(line) > 2 and line not in self.skip_list:
-                    subprocess.run('rg {} {}'.format(line, fname), shell=True)
+                    cur_word = '\"' + line + '\"'
+                    subprocess.run('rg {} {}'.format(cur_word, target_fname),
+                                   shell=True)
         os.remove(tmp_words)
         if self.no_comment:
             tex_source.remove_no_comment_file()
