@@ -1,4 +1,4 @@
-# tex-checker
+# uu-checker
 
 Automatic checker of a latex project. Features:
 
@@ -13,7 +13,7 @@ Automatic checker of a latex project. Features:
 * [`aspell`](http://aspell.net/)
 * [`ripgrep`](https://github.com/BurntSushi/ripgrep)
 * [`pandoc`](https://pandoc.org/) (>2.16)
-* [`bibtex-dblp`](./bibtex-dblp) (customized version as submodule)
+* [`bibtex-dblp`](https://github.com/jingliu9/bibtex-dblp) (customized version as submodule)
 * [`gscholar`](https://github.com/venthur/gscholar)
 * python3
 
@@ -31,6 +31,7 @@ Please use `python3 checker.py --help` to see details of the flags.
 * `--root` specify the entry point of the tex.
 * `--words` specify a file that contains words which will be skipped when checking.
     * The format of the file is *one word per line* and `##` as comment, see `.me.spellignore` as an example.
+* `--no_comment` will do a preprocessing to avoid checking commented tex contents if specified. (line number retains as its original)
 
 ```shell
 $ python3 checker.py --tex --root <paper.tex> --words <./.me.spellignore> --interactive
