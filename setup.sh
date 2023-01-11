@@ -18,5 +18,5 @@ pip install colorama
 pip install gscholar
 pip install yapf
 cd ./bibtex-dblp || exit
-python3 setup.py install
+sudo python3 setup.py install
 
