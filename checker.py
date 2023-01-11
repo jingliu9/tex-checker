@@ -133,6 +133,8 @@ class TexChecker(object):
                     self.skip_list.append(line)
 
     def _resolve_source_files(self, cur_fname):
+        if not os.path.exists(cur_fname):
+            return
         with open(cur_fname) as f:
             self.tex_source_files.append(cur_fname)
             for line in f:
