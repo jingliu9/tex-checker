@@ -3,7 +3,7 @@ absl
 ack
 API
 APIs
-
+dereference
 ENOSPC
 eps
 eval
@@ -25,6 +25,7 @@ inode
 inodes
 interprocess
 intra
+liveness
 microkernel
 microkernels
 Microbenchmark
@@ -41,6 +42,8 @@ NIC
 nvme
 NVMe
 NVM
+POSIX
+stateful
 ## References (Paper name, system name etc.)
 Bento
 BlueFS
@@ -62,6 +65,8 @@ TAS
 WAFL
 ZoFS
 ZygOs
+LevelDB
+RocksDB
 ## names
 Jing
 Liu
